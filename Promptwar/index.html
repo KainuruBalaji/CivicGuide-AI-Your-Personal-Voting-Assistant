@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+  <!-- Content Security Policy -->
+  <meta http-equiv="Content-Security-Policy" 
+        content="default-src 'self'; 
+               style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; 
+               font-src https://fonts.gstatic.com; 
+               img-src 'self' data:; 
+               script-src 'self';">
+
+  <!-- SEO -->
+  <title>CivicGuide AI — Your Personal Voting Assistant</title>
+  <meta name="description" content="CivicGuide AI is a free, non-partisan voting assistant that creates personalized step-by-step voting timelines for every US state. Get registered, know your deadlines, and vote with confidence.">
+  <meta name="keywords" content="voter registration, voting guide, election 2026, civic guide, voting assistant, election deadlines">
+  <meta name="author" content="CivicGuide AI">
+  <meta name="robots" content="index, follow">
+
+  <!-- Open Graph -->
+  <meta property="og:title" content="CivicGuide AI — Your Personal Voting Assistant">
+  <meta property="og:description" content="Free, non-partisan voting guide with personalized timelines for every US state.">
+  <meta property="og:type" content="website">
+
+  <!-- Favicon -->
+  <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
+
+  <!-- Styles -->
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <!-- Animated Background -->
+  <div class="bg-canvas" aria-hidden="true"></div>
+
+  <!-- App Shell -->
+  <div class="app">
+
+    <!-- Header -->
+    <header class="header" role="banner">
+      <div class="header__logo" aria-hidden="true">🗳️</div>
+      <div class="header__info">
+        <h1 class="header__title">CivicGuide AI</h1>
+        <p class="header__subtitle">Your Personal Voting Assistant</p>
+      </div>
+      <span class="header__badge">🔒 Secure &amp; Neutral</span>
+    </header>
+
+    <!-- Chat -->
+    <main class="chat" role="main">
+      <!-- Messages -->
+      <div class="chat__messages" id="chat-messages" role="log" aria-live="polite" aria-label="Chat messages">
+        <!-- Messages are rendered dynamically -->
+      </div>
+
+      <!-- Input Area -->
+      <div class="chat__input-area">
+        <div class="chat__input-wrapper">
+          <label for="chat-input" class="sr-only">Type your message</label>
+          <input 
+            type="text" 
+            id="chat-input" 
+            class="chat__input" 
+            placeholder="Type your message..." 
+            autocomplete="off"
+            maxlength="500"
+            aria-label="Type your message"
+          >
+          <button 
+            id="send-btn" 
+            class="chat__send-btn" 
+            aria-label="Send message"
+            title="Send message"
+          >➤</button>
+        </div>
+      </div>
+    </main>
+
+    <!-- Disclaimer -->
+    <footer class="disclaimer" role="contentinfo">
+      🔒 No data is collected or stored. Always verify deadlines with your local election authority.
+    </footer>
+
+  </div>
+
+  <!-- Scripts (order matters: data → security → utils → chatbot → app) -->
+  <script src="js/data.js?v=2"></script>
+  <script src="js/security.js?v=2"></script>
+  <script src="js/utils.js?v=2"></script>
+  <script src="js/chatbot.js?v=2"></script>
+  <script src="js/app.js?v=2"></script>
+</body>
+</html>
