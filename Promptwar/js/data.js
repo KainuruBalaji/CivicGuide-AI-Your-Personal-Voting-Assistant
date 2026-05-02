@@ -1,8 +1,10 @@
 /**
- * CivicGuide AI — 50-State Civic Dataset (2026 Midterms)
+ * @module CivicGuideData
+ * @description CivicGuide AI — 50-State + DC Civic Dataset (2026 Midterms)
  * All dates are relative to Election Day: November 3, 2026
- * Sources: vote.org, usa.gov, state SOS websites
+ * Sources: vote.org, usa.gov, state Secretary of State websites
  * DISCLAIMER: Users should always verify with their local election authority.
+ * @version 2.0.0
  */
 
 const ELECTION_DAY = '2026-11-03';
@@ -61,12 +63,16 @@ const STATE_DATA = {
   DC: { name:'District of Columbia', abbr:'DC', regDeadlineDays:21, regUrl:'https://vr.dcboe.org/vr/#/login', absenteeDeadlineDays:7, earlyVotingDays:15, idRequired:['No photo ID required'], statusUrl:'https://www.dcboe.org/Voters/Register-To-Vote/Check-Voter-Registration-Status', sameDay:true, onlineReg:true, notes:'Same-day registration. No photo ID required at polls.' }
 };
 
+Object.freeze(STATE_DATA);
+
 /* State name & abbreviation lookup map */
 const STATE_LOOKUP = {};
 Object.values(STATE_DATA).forEach(s => {
   STATE_LOOKUP[s.abbr.toLowerCase()] = s.abbr;
   STATE_LOOKUP[s.name.toLowerCase()] = s.abbr;
 });
+
+Object.freeze(STATE_LOOKUP);
 
 /**
  * Fuzzy-match a user-typed state string to a state abbreviation.

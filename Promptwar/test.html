@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CivicGuide AI — Test Suite</title>
+  <style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body { font-family:'Inter',-apple-system,system-ui,sans-serif; background:#0a0a1a; color:#f1f0ff; padding:2rem; min-height:100vh; }
+    h1 { font-size:1.5rem; margin-bottom:0.5rem; background:linear-gradient(135deg,#818cf8,#a78bfa,#c084fc); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
+    .subtitle { color:rgba(241,240,255,0.5); margin-bottom:2rem; font-size:0.9rem; }
+    .test-summary { padding:1.5rem; border-radius:12px; margin-bottom:1.5rem; font-size:1rem; }
+    .test-summary h2 { font-size:1.2rem; margin-bottom:0.25rem; }
+    .test-summary p { font-size:0.9rem; opacity:0.8; }
+    .test-pass { background:rgba(52,211,153,0.1); border:1px solid rgba(52,211,153,0.3); }
+    .test-fail { background:rgba(248,113,113,0.1); border:1px solid rgba(248,113,113,0.3); }
+    .test-details { display:flex; flex-direction:column; gap:4px; }
+    .test-result { padding:0.5rem 1rem; border-radius:8px; font-size:0.85rem; font-family:'Courier New',monospace; }
+    .result-pass { background:rgba(52,211,153,0.05); color:#34d399; }
+    .result-fail { background:rgba(248,113,113,0.08); color:#f87171; font-weight:600; }
+    #results { margin-top:1rem; }
+  </style>
+</head>
+<body>
+  <h1>🧪 CivicGuide AI — Test Suite</h1>
+  <p class="subtitle">Automated validation of all modules: Security, Data, Detection, Chatbot, Utils, Analytics</p>
+  <div id="results">Running tests...</div>
+
+  <!-- Load all modules in dependency order -->
+  <script src="js/data.js"></script>
+  <script src="js/security.js"></script>
+  <script src="js/utils.js"></script>
+  <script src="js/analytics.js"></script>
+  <script src="js/chatbot.js"></script>
+  <script src="js/tests.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      TestRunner.renderResults(document.getElementById('results'));
+    });
+  </script>
+</body>
+</html>

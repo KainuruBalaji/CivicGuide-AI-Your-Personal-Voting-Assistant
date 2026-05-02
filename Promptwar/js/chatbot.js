@@ -1,47 +1,78 @@
 /**
- * CivicGuide AI — Chatbot Engine (State Machine)
- * Handles conversation flow, intent detection, and response generation
+ * @module CivicGuideChatbot
+ * @description Conversation engine using a finite state machine architecture.
+ * Handles intent detection, response generation, neutrality enforcement,
+ * and personalized voter roadmap creation for all 50 US states + DC.
+ * @version 2.0.0
  */
 
 const Chatbot = (() => {
-  // States
-  const STATES = {
+  /* ── Conversation States ── */
+  const STATES = Object.freeze({
     WELCOME: 'WELCOME',
     INTAKE: 'INTAKE',
     ROADMAP: 'ROADMAP',
     STEP_DETAIL: 'STEP_DETAIL',
     FOLLOWUP: 'FOLLOWUP'
-  };
+  });
 
+  /* ── Universal Command Strings ── */
+  const COMMANDS = Object.freeze({
+    START_OVER: 'start over',
+    RESET: 'reset',
+    RESTART: 'restart',
+    BACK_TO_ROADMAP: 'back to roadmap',
+    ROADMAP: 'roadmap',
+    BACK: 'back',
+    NEXT_MILESTONE: 'next milestone',
+    NEXT_STEP: 'next step'
+  });
+
+  /* ── Shared Milestone Keyword Map (DRY — used in ROADMAP and STEP_DETAIL states) ── */
+  const MILESTONE_KEYWORDS = Object.freeze({
+    registration: ['registration', 'register', 'sign up'],
+    absentee: ['absentee', 'ballot', 'mail', 'mail-in'],
+    earlyVoting: ['early', 'early voting'],
+    electionDay: ['election day', 'election', 'vote day', 'november']
+  });
+
+  /* ── Milestone Navigation Order ── */
+  const MILESTONE_ORDER = ['registration', 'absentee', 'earlyVoting', 'electionDay'];
+
+  /* ── State ── */
   let currentState = STATES.WELCOME;
   let userProfile = { state: null, stateData: null, method: null };
   let selectedMilestone = null;
   let milestones = null;
 
-  // Partisan keywords for neutrality guard
-  const PARTISAN_PATTERNS = [
-    /\b(democrat|republican|gop|liberal|conservative|left-wing|right-wing|maga|progressive)\b/i,
+  /* ── Partisan Detection Patterns ── */
+  const PARTISAN_PATTERNS = Object.freeze([
+    /\b(democrats?|republicans?|gop|liberals?|conservatives?|left-wing|right-wing|maga|progressives?)\b/i,
     /\b(trump|biden|harris|desantis|obama|clinton|bernie|sanders|pelosi|mcconnell|aoc)\b/i,
     /\bwho should i vote for\b/i,
     /\bwhich party\b/i,
     /\bbest candidate\b/i,
     /\bvote for .+ (party|candidate)\b/i,
     /\b(pro-life|pro-choice|gun control|gun rights|defund|build the wall|green new deal)\b/i
-  ];
+  ]);
 
-  // Voting method keywords
+  /* ── Voting Method Keywords ── */
   const MAIL_KEYWORDS = ['mail', 'absentee', 'mail-in', 'postal', 'by mail', 'mail in'];
   const INPERSON_KEYWORDS = ['in-person', 'in person', 'polling', 'polls', 'walk in', 'election day', 'at the polls'];
 
   /**
-   * Check if input contains partisan content
+   * Check if input contains partisan content.
+   * @param {string} input - Sanitized user input
+   * @returns {boolean}
    */
   function isPartisan(input) {
     return PARTISAN_PATTERNS.some(p => p.test(input));
   }
 
   /**
-   * Detect voting method from input
+   * Detect voting method from input.
+   * @param {string} input - Sanitized user input
+   * @returns {string|null} 'mail', 'in-person', or null
    */
   function detectMethod(input) {
     const lower = input.toLowerCase();
@@ -51,14 +82,32 @@ const Chatbot = (() => {
   }
 
   /**
-   * Detect state from input
+   * Detect state from input using the data module's fuzzy matcher.
+   * @param {string} input - Sanitized user input
+   * @returns {object|null} State data object or null
    */
   function detectState(input) {
     return getStateData(input);
   }
 
   /**
-   * Generate the welcome message
+   * Match user input against the shared milestone keyword map.
+   * @param {string} lowerInput - Lowercased user input
+   * @returns {string|null} Matched milestone key or null
+   * @private
+   */
+  function _matchMilestoneKeyword(lowerInput) {
+    for (const [key, terms] of Object.entries(MILESTONE_KEYWORDS)) {
+      if (terms.some(t => lowerInput.includes(t))) {
+        return key;
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Generate the welcome message and transition to INTAKE state.
+   * @returns {object} Bot response object
    */
   function getWelcomeMessage() {
     currentState = STATES.INTAKE;
@@ -70,9 +119,11 @@ const Chatbot = (() => {
   }
 
   /**
-   * Generate the neutrality disclaimer
+   * Generate the neutrality disclaimer response.
+   * @returns {object} Bot response object with neutralAlert flag
    */
   function getNeutralityResponse() {
+    Analytics.trackPartisanFilter();
     return {
       text: `⚖️ I am a **neutral civic guide** here to help with the logistics of voting. I cannot offer political opinions, but I encourage you to research candidates using official state/local voter guides.\n\nLet's get back on track! 🗳️`,
       neutralAlert: true,
@@ -84,12 +135,16 @@ const Chatbot = (() => {
   }
 
   /**
-   * Build the voter roadmap response
+   * Build the personalized voter roadmap response.
+   * @returns {object} Bot response with milestone buttons
    */
   function buildRoadmap() {
     const sd = userProfile.stateData;
     milestones = getMilestones(sd);
+    const prevState = currentState;
     currentState = STATES.ROADMAP;
+
+    Analytics.trackConversationStep(prevState, STATES.ROADMAP);
 
     const methodLabel = userProfile.method === 'mail' ? '📬 By Mail' : '🏛️ In-Person';
     let text = `🎉 **Awesome! Here's your personalized Voter Roadmap for ${sd.name}!**\n\nVoting method: ${methodLabel}\n\n`;
@@ -154,13 +209,19 @@ const Chatbot = (() => {
   }
 
   /**
-   * Generate micro-steps for a selected milestone
+   * Generate detailed micro-steps for a selected milestone.
+   * @param {string} key - Milestone key ('registration', 'absentee', 'earlyVoting', 'electionDay')
+   * @returns {object} Bot response with detailed instructions
    */
   function getMilestoneDetail(key) {
     selectedMilestone = key;
+    const prevState = currentState;
     currentState = STATES.STEP_DETAIL;
     const sd = userProfile.stateData;
     let text = '';
+
+    Analytics.trackMilestoneView(key);
+    Analytics.trackConversationStep(prevState, STATES.STEP_DETAIL);
 
     switch (key) {
       case 'registration': {
@@ -186,7 +247,7 @@ const Chatbot = (() => {
         break;
       }
       case 'electionDay': {
-        text = `🗳️ **Election Day Checklist**\n\n**Date:** ${Utils.formatDate(milestones.electionDay.date)}\n\n**Before you go:**\n- ✅ Confirm your polling place — 🔗 [Find it here](${sd.statusUrl})\n- ✅ Bring required ID: ${sd.idRequired[0]}\n- ✅ Know what's on your ballot — research candidates beforehand\n\n**At the polls:**\n- Polls are typically open **7:00 AM – 7:00 PM** (check your state for exact hours)\n- If you're in line when polls close, **you still have the right to vote!**\n- If there's an issue with your registration, ask for a **Provisional Ballot** *(think of it as a "safety net" ballot that gets verified and counted later)*\n\n**After voting:**\n- 🎉 Grab your "I Voted" sticker!\n- Share that you voted (but not who you voted for) to encourage others`;
+        text = `🗳️ **Election Day Checklist**\n\n**Date:** ${Utils.formatDate(milestones.electionDay.date)}\n\n**Before you go:**\n- ✅ Confirm your polling place — 🔗 [Find it here](${sd.statusUrl})\n- ✅ Bring required ID: ${sd.idRequired[0]}\n- ✅ Know what's on your ballot — research candidates beforehand\n\n**At the polls:**\n- Polls are typically open **7:00 AM – 7:00 PM** (check your state for exact hours)\n- If you're in line when polls close, **you still have the right to vote!**\n- If there's an issue with your registration, ask for a **Provisional Ballot** *(think of it as a \"safety net\" ballot that gets verified and counted later)*\n\n**After voting:**\n- 🎉 Grab your "I Voted" sticker!\n- Share that you voted (but not who you voted for) to encourage others`;
         if (userProfile.method === 'mail') {
           text += `\n\n📬 **Mail ballot reminder:** If you haven't mailed your ballot yet, you may be able to drop it off at your polling place on Election Day!`;
         }
@@ -204,7 +265,9 @@ const Chatbot = (() => {
   }
 
   /**
-   * Main process function — routes user input through the state machine
+   * Main process function — routes user input through the state machine.
+   * @param {string} rawInput - Raw (pre-sanitized) user input
+   * @returns {object|null} Bot response object or null if input is empty
    */
   function process(rawInput) {
     const input = Security.sanitizeInput(rawInput);
@@ -226,27 +289,28 @@ const Chatbot = (() => {
 
     // Handle universal commands
     const lower = input.toLowerCase();
-    if (lower === 'start over' || lower === 'reset' || lower === 'restart') {
+    if (lower === COMMANDS.START_OVER || lower === COMMANDS.RESET || lower === COMMANDS.RESTART) {
+      const prevState = currentState;
       currentState = STATES.WELCOME;
       userProfile = { state: null, stateData: null, method: null };
       selectedMilestone = null;
       milestones = null;
+      Analytics.trackConversationStep(prevState, STATES.WELCOME);
       return getWelcomeMessage();
     }
 
-    if (lower === 'back to roadmap' || lower === 'roadmap' || lower === 'back') {
+    if (lower === COMMANDS.BACK_TO_ROADMAP || lower === COMMANDS.ROADMAP || lower === COMMANDS.BACK) {
       if (userProfile.stateData) {
         return buildRoadmap();
       }
     }
 
     // Handle "next milestone"
-    if (lower.includes('next milestone') || lower.includes('next step')) {
+    if (lower.includes(COMMANDS.NEXT_MILESTONE) || lower.includes(COMMANDS.NEXT_STEP)) {
       if (milestones && selectedMilestone) {
-        const order = ['registration', 'absentee', 'earlyVoting', 'electionDay'];
-        const idx = order.indexOf(selectedMilestone);
-        if (idx < order.length - 1) {
-          return getMilestoneDetail(order[idx + 1]);
+        const idx = MILESTONE_ORDER.indexOf(selectedMilestone);
+        if (idx < MILESTONE_ORDER.length - 1) {
+          return getMilestoneDetail(MILESTONE_ORDER[idx + 1]);
         } else {
           return {
             text: `🎉 **You've covered all your milestones!** You're all set for Election Day. Is there anything else you'd like to review?`,
@@ -260,13 +324,17 @@ const Chatbot = (() => {
     // State machine routing
     switch (currentState) {
       case STATES.INTAKE: {
-        // Detect method first — if method keywords are found, skip state detection
-        // This prevents "In-person voting" from falsely matching a state
         const detectedMethod = detectMethod(input);
         const detectedState = detectedMethod ? null : detectState(input);
 
-        if (detectedState) userProfile.stateData = detectedState;
-        if (detectedMethod) userProfile.method = detectedMethod;
+        if (detectedState) {
+          userProfile.stateData = detectedState;
+          Analytics.trackStateSelection(detectedState.abbr);
+        }
+        if (detectedMethod) {
+          userProfile.method = detectedMethod;
+          Analytics.trackMethodSelection(detectedMethod);
+        }
 
         // If we only got method, ask for state
         if (!userProfile.stateData && userProfile.method) {
@@ -300,18 +368,9 @@ const Chatbot = (() => {
       }
 
       case STATES.ROADMAP: {
-        // Check if user typed a milestone name
-        const milestoneMap = {
-          'registration': ['registration', 'register', 'sign up'],
-          'absentee': ['absentee', 'ballot', 'mail', 'mail-in'],
-          'earlyVoting': ['early', 'early voting'],
-          'electionDay': ['election day', 'election', 'vote day', 'november']
-        };
-        for (const [key, terms] of Object.entries(milestoneMap)) {
-          if (terms.some(t => lower.includes(t))) {
-            return getMilestoneDetail(key);
-          }
-        }
+        const matchedKey = _matchMilestoneKeyword(lower);
+        if (matchedKey) return getMilestoneDetail(matchedKey);
+
         return {
           text: `Which milestone would you like to explore? You can click one of the buttons above, or type something like "registration" or "election day".`,
           quickReplies: ['Registration', 'Election Day', 'Start over'],
@@ -321,18 +380,8 @@ const Chatbot = (() => {
 
       case STATES.STEP_DETAIL:
       case STATES.FOLLOWUP: {
-        // Check if user wants a different milestone
-        const milestoneMap2 = {
-          'registration': ['registration', 'register'],
-          'absentee': ['absentee', 'ballot', 'mail-in'],
-          'earlyVoting': ['early', 'early voting'],
-          'electionDay': ['election day', 'election', 'november']
-        };
-        for (const [key, terms] of Object.entries(milestoneMap2)) {
-          if (terms.some(t => lower.includes(t))) {
-            return getMilestoneDetail(key);
-          }
-        }
+        const matchedKey = _matchMilestoneKeyword(lower);
+        if (matchedKey) return getMilestoneDetail(matchedKey);
 
         // Generic follow-up
         currentState = STATES.FOLLOWUP;
@@ -349,7 +398,9 @@ const Chatbot = (() => {
   }
 
   /**
-   * Handle milestone button click
+   * Handle milestone button click (public API).
+   * @param {string} key - Milestone key
+   * @returns {object} Bot response object
    */
   function selectMilestone(key) {
     return getMilestoneDetail(key);
@@ -360,6 +411,10 @@ const Chatbot = (() => {
     process,
     selectMilestone,
     getCurrentState: () => currentState,
-    getUserProfile: () => userProfile
+    getUserProfile: () => ({ ...userProfile }),
+    /** @type {Readonly<object>} Exposed for testing */
+    _STATES: STATES,
+    _COMMANDS: COMMANDS,
+    _MILESTONE_KEYWORDS: MILESTONE_KEYWORDS
   };
 })();

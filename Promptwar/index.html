@@ -11,7 +11,11 @@
                style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; 
                font-src https://fonts.gstatic.com; 
                img-src 'self' data:; 
-               script-src 'self';">
+               script-src 'self' https://www.gstatic.com https://www.googletagmanager.com https://www.google-analytics.com;
+               connect-src 'self' https://www.google-analytics.com https://firebaseinstallations.googleapis.com https://firebase.googleapis.com;">
+
+  <!-- Referrer Policy -->
+  <meta name="referrer" content="strict-origin-when-cross-origin">
 
   <!-- SEO -->
   <title>CivicGuide AI — Your Personal Voting Assistant</title>
@@ -19,19 +23,32 @@
   <meta name="keywords" content="voter registration, voting guide, election 2026, civic guide, voting assistant, election deadlines">
   <meta name="author" content="CivicGuide AI">
   <meta name="robots" content="index, follow">
+  <meta name="theme-color" content="#0a0a1a">
 
   <!-- Open Graph -->
   <meta property="og:title" content="CivicGuide AI — Your Personal Voting Assistant">
   <meta property="og:description" content="Free, non-partisan voting guide with personalized timelines for every US state.">
   <meta property="og:type" content="website">
+  <meta property="og:url" content="https://civicguide-ai-election.web.app">
 
   <!-- Favicon -->
   <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
+
+  <!-- Performance: Preconnect to Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="dns-prefetch" href="https://www.google-analytics.com">
+
+  <!-- Google Fonts (loaded via link instead of CSS @import for performance) -->
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap" crossorigin="anonymous">
 
   <!-- Styles -->
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
+  <!-- Skip to Content Link (Accessibility) -->
+  <a href="#chat-input" class="skip-link" id="skip-link">Skip to chat input</a>
+
   <!-- Animated Background -->
   <div class="bg-canvas" aria-hidden="true"></div>
 
@@ -45,13 +62,13 @@
         <h1 class="header__title">CivicGuide AI</h1>
         <p class="header__subtitle">Your Personal Voting Assistant</p>
       </div>
-      <span class="header__badge">🔒 Secure &amp; Neutral</span>
+      <span class="header__badge" aria-label="Secure and neutral assistant">🔒 Secure &amp; Neutral</span>
     </header>
 
     <!-- Chat -->
-    <main class="chat" role="main">
+    <main class="chat" aria-roledescription="Chat assistant">
       <!-- Messages -->
-      <div class="chat__messages" id="chat-messages" role="log" aria-live="polite" aria-label="Chat messages">
+      <div class="chat__messages" id="chat-messages" role="log" aria-live="polite" aria-label="Chat messages" aria-relevant="additions">
         <!-- Messages are rendered dynamically -->
       </div>
 
@@ -66,14 +83,18 @@
             placeholder="Type your message..." 
             autocomplete="off"
             maxlength="500"
-            aria-label="Type your message"
+            aria-label="Type your message to the voting assistant"
+            aria-describedby="input-hint"
           >
+          <span id="input-hint" class="sr-only">Press Enter to send or click the Send button</span>
           <button 
             id="send-btn" 
             class="chat__send-btn" 
             aria-label="Send message"
             title="Send message"
-          >➤</button>
+          >
+            <span aria-hidden="true">➤</span>
+          </button>
         </div>
       </div>
     </main>
@@ -85,11 +106,27 @@
 
   </div>
 
-  <!-- Scripts (order matters: data → security → utils → chatbot → app) -->
-  <script src="js/data.js?v=2"></script>
-  <script src="js/security.js?v=2"></script>
-  <script src="js/utils.js?v=2"></script>
-  <script src="js/chatbot.js?v=2"></script>
-  <script src="js/app.js?v=2"></script>
+  <!-- NoScript Fallback (Accessibility) -->
+  <noscript>
+    <div style="padding:2rem;text-align:center;color:#f1f0ff;background:#0a0a1a;min-height:100vh;display:flex;align-items:center;justify-content:center;font-family:sans-serif;">
+      <div>
+        <h1>CivicGuide AI</h1>
+        <p>This application requires JavaScript to run. Please enable JavaScript in your browser settings to use the voting assistant.</p>
+        <p>In the meantime, you can check your voter registration at <a href="https://vote.org" style="color:#818cf8;">vote.org</a>.</p>
+      </div>
+    </div>
+  </noscript>
+
+  <!-- Firebase SDK (Google Services — Analytics only) -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-analytics-compat.js"></script>
+
+  <!-- Scripts (order matters: data → security → utils → analytics → chatbot → app) -->
+  <script src="js/data.js?v=3"></script>
+  <script src="js/security.js?v=3"></script>
+  <script src="js/utils.js?v=3"></script>
+  <script src="js/analytics.js?v=3"></script>
+  <script src="js/chatbot.js?v=3"></script>
+  <script src="js/app.js?v=3"></script>
 </body>
 </html>

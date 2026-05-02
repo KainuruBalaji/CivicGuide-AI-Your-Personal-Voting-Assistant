@@ -1,22 +1,46 @@
 /**
- * CivicGuide AI — Main Application Controller
- * Initializes chat, handles UI events, renders messages
+ * @module CivicGuideApp
+ * @description Main UI controller — initializes chat, handles events,
+ * renders messages with accessibility support, and manages focus.
+ * @version 2.0.0
  */
 
 const App = (() => {
-  // DOM refs
+  /** @type {HTMLElement} Chat messages container */
   let messagesContainer;
+  /** @type {HTMLInputElement} Chat input field */
   let inputField;
+  /** @type {HTMLButtonElement} Send button */
   let sendButton;
-  let typingIndicator;
+
+  /** @constant {number} Maximum messages kept in DOM for performance */
+  const MAX_DOM_MESSAGES = 100;
+
+  /** Firebase configuration for analytics */
+  const FIREBASE_CONFIG = {
+    apiKey: "AIzaSyDemo-CivicGuide",
+    authDomain: "civicguide-ai-election.firebaseapp.com",
+    projectId: "civicguide-ai-election",
+    storageBucket: "civicguide-ai-election.appspot.com",
+    messagingSenderId: "000000000000",
+    appId: "1:000000000000:web:abcdef1234567890",
+    measurementId: "G-XXXXXXXXXX"
+  };
 
   /**
-   * Initialize the application
+   * Initialize the application.
+   * Sets up DOM references, event listeners, error handlers, and analytics.
    */
   function init() {
+    // DOM references with validation
     messagesContainer = document.getElementById('chat-messages');
     inputField = document.getElementById('chat-input');
     sendButton = document.getElementById('send-btn');
+
+    if (!messagesContainer || !inputField || !sendButton) {
+      console.error('[CivicGuide] Critical DOM elements missing — cannot initialize.');
+      return;
+    }
 
     // Event listeners
     sendButton.addEventListener('click', handleSend);
@@ -27,6 +51,28 @@ const App = (() => {
       }
     });
 
+    // Global error handler
+    window.addEventListener('error', (event) => {
+      console.error('[CivicGuide] Unhandled error:', event.message);
+      Analytics.logEvent('app_error', { message: event.message?.substring(0, 100) });
+    });
+
+    window.addEventListener('unhandledrejection', (event) => {
+      console.error('[CivicGuide] Unhandled promise rejection:', event.reason);
+      Analytics.logEvent('app_error', { message: String(event.reason)?.substring(0, 100) });
+    });
+
+    // Track engagement on visibility change
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'hidden') {
+        Analytics.trackEngagement();
+      }
+    });
+
+    // Initialize analytics (privacy-first)
+    Analytics.init(FIREBASE_CONFIG);
+    Analytics.logEvent('app_loaded');
+
     // Show welcome message with a slight delay for effect
     setTimeout(async () => {
       const welcome = Chatbot.getWelcomeMessage();
@@ -35,11 +81,20 @@ const App = (() => {
   }
 
   /**
-   * Handle send button click or Enter key
+   * Handle send button click or Enter key.
+   * Validates input, checks rate limits, and processes through chatbot.
+   * @returns {Promise<void>}
    */
   async function handleSend() {
     const raw = inputField.value.trim();
     if (!raw) return;
+
+    // Validate input length
+    const validation = Security.validateInputLength(raw);
+    if (!validation.valid) {
+      showSystemMessage(`⚠️ ${validation.message}`);
+      return;
+    }
 
     // Rate limit check
     if (!Security.checkRateLimit()) {
@@ -60,7 +115,9 @@ const App = (() => {
   }
 
   /**
-   * Handle quick reply button click
+   * Handle quick reply button click.
+   * @param {string} text - Quick reply text
+   * @returns {Promise<void>}
    */
   async function handleQuickReply(text) {
     renderUserMessage(text);
@@ -69,13 +126,17 @@ const App = (() => {
     if (response) {
       await showTypingThenMessage(response);
     }
+
+    // Return focus to input after quick reply
+    inputField.focus();
   }
 
   /**
-   * Handle milestone button click
+   * Handle milestone button click.
+   * @param {string} key - Milestone key
+   * @returns {Promise<void>}
    */
   async function handleMilestoneClick(key) {
-    // Show as user action
     const labelMap = {
       registration: '📝 Registration Deadline',
       absentee: '📬 Ballot Request Deadline',
@@ -88,13 +149,20 @@ const App = (() => {
     if (response) {
       await showTypingThenMessage(response);
     }
+
+    // Return focus to input
+    inputField.focus();
   }
 
   /**
-   * Show typing indicator, then render the bot message
+   * Show typing indicator, then render the bot message.
+   * Sets aria-busy during typing for screen reader support.
+   * @param {object} response - Bot response object
+   * @returns {Promise<void>}
    */
   async function showTypingThenMessage(response) {
     sendButton.disabled = true;
+    messagesContainer.setAttribute('aria-busy', 'true');
     showTypingIndicator();
 
     // Variable delay based on response length
@@ -103,47 +171,54 @@ const App = (() => {
     await Utils.delay(delay);
 
     hideTypingIndicator();
+    messagesContainer.setAttribute('aria-busy', 'false');
     renderBotMessage(response);
     sendButton.disabled = false;
     inputField.focus();
   }
 
   /**
-   * Render a user message bubble
+   * Render a user message bubble.
+   * Uses textContent (not innerHTML) for XSS safety.
+   * @param {string} text - User message text
    */
   function renderUserMessage(text) {
     const msg = document.createElement('div');
     msg.className = 'message message--user';
+    msg.setAttribute('role', 'listitem');
     msg.innerHTML = `
-      <div class="message__avatar">👤</div>
+      <div class="message__avatar" aria-hidden="true">👤</div>
       <div class="message__content"></div>
     `;
     // Use textContent for user messages (XSS safe)
     msg.querySelector('.message__content').textContent = text;
     messagesContainer.appendChild(msg);
+    pruneOldMessages();
     Utils.scrollToBottom(messagesContainer);
   }
 
   /**
-   * Render a bot message bubble with optional milestone buttons and quick replies
+   * Render a bot message bubble with optional milestone buttons and quick replies.
+   * @param {object} response - Bot response object
    */
   function renderBotMessage(response) {
     const msg = document.createElement('div');
     msg.className = 'message message--bot';
+    msg.setAttribute('role', 'listitem');
 
     let contentHtml = Utils.parseMarkdown(response.text);
 
     // Add neutral alert if flagged
     if (response.neutralAlert) {
       contentHtml += `
-        <div class="neutral-alert">
-          <span class="neutral-alert__icon">⚖️</span>
+        <div class="neutral-alert" role="alert">
+          <span class="neutral-alert__icon" aria-hidden="true">⚖️</span>
           <span class="neutral-alert__text">This assistant is strictly non-partisan and cannot provide political opinions or candidate recommendations.</span>
         </div>`;
     }
 
     msg.innerHTML = `
-      <div class="message__avatar">🗳️</div>
+      <div class="message__avatar" aria-hidden="true">🗳️</div>
       <div class="message__content">${contentHtml}</div>
     `;
 
@@ -154,10 +229,11 @@ const App = (() => {
         const btn = document.createElement('button');
         btn.className = 'milestone-btn';
         btn.setAttribute('data-milestone', m.key);
+        btn.setAttribute('aria-label', `View details for ${m.label}`);
         btn.innerHTML = `
-          <span class="milestone-btn__icon">${m.icon}</span>
+          <span class="milestone-btn__icon" aria-hidden="true">${m.icon}</span>
           <span class="milestone-btn__text">${m.label}</span>
-          <span class="milestone-btn__arrow">→</span>
+          <span class="milestone-btn__arrow" aria-hidden="true">→</span>
         `;
         btn.addEventListener('click', () => handleMilestoneClick(m.key));
         content.appendChild(btn);
@@ -169,10 +245,13 @@ const App = (() => {
       const content = msg.querySelector('.message__content');
       const qrContainer = document.createElement('div');
       qrContainer.className = 'quick-replies';
+      qrContainer.setAttribute('role', 'group');
+      qrContainer.setAttribute('aria-label', 'Quick reply options');
       response.quickReplies.forEach(text => {
         const btn = document.createElement('button');
         btn.className = 'quick-reply-btn';
         btn.textContent = text;
+        btn.setAttribute('aria-label', `Reply: ${text}`);
         btn.addEventListener('click', () => handleQuickReply(text));
         qrContainer.appendChild(btn);
       });
@@ -180,18 +259,21 @@ const App = (() => {
     }
 
     messagesContainer.appendChild(msg);
+    pruneOldMessages();
     Utils.scrollToBottom(messagesContainer);
   }
 
   /**
-   * Show a system/status message
+   * Show a system/status message.
+   * @param {string} text - System message text
    */
   function showSystemMessage(text) {
     const msg = document.createElement('div');
-    msg.className = 'message message--bot';
+    msg.className = 'message message--system';
+    msg.setAttribute('role', 'status');
     msg.innerHTML = `
-      <div class="message__avatar">⚙️</div>
-      <div class="message__content" style="opacity:0.7;font-size:0.85rem"></div>
+      <div class="message__avatar" aria-hidden="true">⚙️</div>
+      <div class="message__content message__content--system"></div>
     `;
     msg.querySelector('.message__content').textContent = text;
     messagesContainer.appendChild(msg);
@@ -199,15 +281,17 @@ const App = (() => {
   }
 
   /**
-   * Show typing indicator
+   * Show typing indicator with screen reader announcement.
    */
   function showTypingIndicator() {
     const indicator = document.createElement('div');
     indicator.className = 'typing-indicator';
     indicator.id = 'typing-indicator';
+    indicator.setAttribute('role', 'status');
+    indicator.setAttribute('aria-label', 'CivicGuide is typing a response');
     indicator.innerHTML = `
-      <div class="typing-indicator__avatar">🗳️</div>
-      <div class="typing-indicator__dots">
+      <div class="typing-indicator__avatar" aria-hidden="true">🗳️</div>
+      <div class="typing-indicator__dots" aria-hidden="true">
         <div class="typing-indicator__dot"></div>
         <div class="typing-indicator__dot"></div>
         <div class="typing-indicator__dot"></div>
@@ -218,11 +302,25 @@ const App = (() => {
   }
 
   /**
-   * Hide typing indicator
+   * Hide and remove typing indicator.
    */
   function hideTypingIndicator() {
     const indicator = document.getElementById('typing-indicator');
     if (indicator) indicator.remove();
+  }
+
+  /**
+   * Prune old messages from the DOM to maintain performance.
+   * Keeps the last MAX_DOM_MESSAGES messages.
+   */
+  function pruneOldMessages() {
+    const messages = messagesContainer.querySelectorAll('.message');
+    if (messages.length > MAX_DOM_MESSAGES) {
+      const toRemove = messages.length - MAX_DOM_MESSAGES;
+      for (let i = 0; i < toRemove; i++) {
+        messages[i].remove();
+      }
+    }
   }
 
   // Public API
