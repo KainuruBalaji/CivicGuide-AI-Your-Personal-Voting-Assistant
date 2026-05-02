@@ -12,7 +12,9 @@
                font-src https://fonts.gstatic.com; 
                img-src 'self' data:; 
                script-src 'self' https://www.gstatic.com https://www.googletagmanager.com https://www.google-analytics.com;
-               connect-src 'self' https://www.google-analytics.com https://firebaseinstallations.googleapis.com https://firebase.googleapis.com;">
+               connect-src 'self' https://www.google-analytics.com https://firebaseinstallations.googleapis.com https://firebase.googleapis.com https://firebaselogging-pa.googleapis.com;
+               worker-src 'self';
+               manifest-src 'self';">
 
   <!-- Referrer Policy -->
   <meta name="referrer" content="strict-origin-when-cross-origin">
@@ -20,7 +22,7 @@
   <!-- SEO -->
   <title>CivicGuide AI — Your Personal Voting Assistant</title>
   <meta name="description" content="CivicGuide AI is a free, non-partisan voting assistant that creates personalized step-by-step voting timelines for every US state. Get registered, know your deadlines, and vote with confidence.">
-  <meta name="keywords" content="voter registration, voting guide, election 2026, civic guide, voting assistant, election deadlines">
+  <meta name="keywords" content="voter registration, voting guide, election 2026, civic guide, voting assistant, election deadlines, midterm elections">
   <meta name="author" content="CivicGuide AI">
   <meta name="robots" content="index, follow">
   <meta name="theme-color" content="#0a0a1a">
@@ -30,14 +32,53 @@
   <meta property="og:description" content="Free, non-partisan voting guide with personalized timelines for every US state.">
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://civicguide-ai-election.web.app">
+  <meta property="og:site_name" content="CivicGuide AI">
+  <meta property="og:locale" content="en_US">
+
+  <!-- Twitter Card -->
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="CivicGuide AI — Your Personal Voting Assistant">
+  <meta name="twitter:description" content="Free, non-partisan voting guide with personalized timelines for every US state.">
+
+  <!-- Structured Data (JSON-LD) for Google Search -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "WebApplication",
+    "name": "CivicGuide AI",
+    "alternateName": "CivicGuide AI — Your Personal Voting Assistant",
+    "url": "https://civicguide-ai-election.web.app",
+    "description": "Free, non-partisan voting assistant with personalized step-by-step timelines for voter registration, mail-in ballots, early voting, and Election Day across all 50 US states and DC.",
+    "applicationCategory": "GovernmentApplication",
+    "operatingSystem": "Web",
+    "offers": {
+      "@type": "Offer",
+      "price": "0",
+      "priceCurrency": "USD"
+    },
+    "creator": {
+      "@type": "Organization",
+      "name": "CivicGuide AI"
+    },
+    "inLanguage": "en-US",
+    "isAccessibleForFree": true,
+    "browserRequirements": "Requires JavaScript"
+  }
+  </script>
 
   <!-- Favicon -->
   <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
+  <link rel="apple-touch-icon" href="assets/favicon.svg">
 
-  <!-- Performance: Preconnect to Google Fonts -->
+  <!-- PWA Manifest -->
+  <link rel="manifest" href="manifest.json">
+
+  <!-- Performance: Preconnect to Google Fonts & Firebase -->
   <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin>
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
   <link rel="dns-prefetch" href="https://www.google-analytics.com">
+  <link rel="dns-prefetch" href="https://firebaseinstallations.googleapis.com">
 
   <!-- Google Fonts (loaded via link instead of CSS @import for performance) -->
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap" crossorigin="anonymous">
@@ -67,6 +108,9 @@
 
     <!-- Chat -->
     <main class="chat" aria-roledescription="Chat assistant">
+      <!-- Screen-reader live region for announcements -->
+      <div id="sr-announcements" class="sr-only" aria-live="assertive" aria-atomic="true"></div>
+
       <!-- Messages -->
       <div class="chat__messages" id="chat-messages" role="log" aria-live="polite" aria-label="Chat messages" aria-relevant="additions">
         <!-- Messages are rendered dynamically -->
@@ -85,6 +129,8 @@
             maxlength="500"
             aria-label="Type your message to the voting assistant"
             aria-describedby="input-hint"
+            enterkeyhint="send"
+            spellcheck="true"
           >
           <span id="input-hint" class="sr-only">Press Enter to send or click the Send button</span>
           <button 
@@ -92,6 +138,7 @@
             class="chat__send-btn" 
             aria-label="Send message"
             title="Send message"
+            type="button"
           >
             <span aria-hidden="true">➤</span>
           </button>
@@ -117,16 +164,17 @@
     </div>
   </noscript>
 
-  <!-- Firebase SDK (Google Services — Analytics only) -->
-  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-analytics-compat.js"></script>
+  <!-- Firebase SDK (Google Services — Analytics + Performance) -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js" crossorigin="anonymous"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-analytics-compat.js" crossorigin="anonymous"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-performance-compat.js" crossorigin="anonymous"></script>
 
   <!-- Scripts (order matters: data → security → utils → analytics → chatbot → app) -->
-  <script src="js/data.js?v=3"></script>
-  <script src="js/security.js?v=3"></script>
-  <script src="js/utils.js?v=3"></script>
-  <script src="js/analytics.js?v=3"></script>
-  <script src="js/chatbot.js?v=3"></script>
-  <script src="js/app.js?v=3"></script>
+  <script src="js/data.js?v=4"></script>
+  <script src="js/security.js?v=4"></script>
+  <script src="js/utils.js?v=4"></script>
+  <script src="js/analytics.js?v=4"></script>
+  <script src="js/chatbot.js?v=4"></script>
+  <script src="js/app.js?v=4"></script>
 </body>
 </html>

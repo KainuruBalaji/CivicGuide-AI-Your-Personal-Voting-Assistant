@@ -45,13 +45,13 @@ That's it. No sign-up, no email, no tracking.
 
 ## Built-In Safeguards
 
-A couple of things that make this different from a random voting FAQ page:
-
 **Completely neutral.** If you try asking it who to vote for or mention any political party or candidate, it politely redirects you. It's a logistics tool, not a persuasion tool.
 
-**Security-first.** All user input is sanitized against XSS and injection attacks. There's rate limiting to prevent spam. The app runs entirely in your browser with no backend and no data ever leaves your device.
+**Security-first.** All user input is sanitized against XSS and injection attacks. There's adaptive rate limiting with backoff to prevent spam. Comprehensive HTTP security headers (X-Content-Type-Options, X-Frame-Options, Referrer-Policy, Permissions-Policy) are enforced via Firebase Hosting. The app runs entirely in your browser with no backend — no data ever leaves your device.
 
-**50-state + DC coverage.** Every US state has different rules, and CivicGuide AI has data for all of them, sourced from vote.org, usa.gov, and individual Secretary of State websites.
+**Accessible.** Built with WCAG guidelines in mind — skip navigation, ARIA live regions, screen reader announcements, keyboard navigation, focus management, high contrast mode, and reduced motion support.
+
+**Privacy-first analytics.** Firebase Analytics is configured to respect Do Not Track and Global Privacy Control. No PII is ever collected. Users can opt out at any time.
 
 ## Coverage
 
@@ -69,36 +69,71 @@ All 50 US states and the District of Columbia are supported, with data tailored 
 
 ## Tech Stack
 
-This is a lightweight, static web app. No frameworks, no build tools, no server.
+This is a lightweight, static web app with deep Google Services integration.
 
-- **HTML5** with semantic structure and accessibility attributes
-- **Vanilla CSS** with animations, glassmorphism, and responsive design
-- **Vanilla JavaScript** using a state machine architecture for conversation flow
-- **Firebase Hosting** for deployment
+- **HTML5** — semantic structure, JSON-LD structured data, ARIA accessibility
+- **Vanilla CSS** — glassmorphism, animations, responsive design, high contrast mode, reduced motion
+- **Vanilla JavaScript** — state machine architecture, modular IIFE pattern, comprehensive JSDoc
+- **Firebase Hosting** — deployment with security headers and caching
+- **Firebase Analytics** — privacy-first usage tracking (respects DNT/GPC)
+- **Firebase Performance Monitoring** — automatic page load and network performance tracking
+- **Google Fonts** — Inter & Outfit with preconnect optimization
+- **PWA** — service worker for offline caching, web app manifest for installability
+
+## Google Services Integration
+
+| Service | Purpose |
+|---|---|
+| **Firebase Hosting** | Production deployment with CDN, security headers, and caching rules |
+| **Firebase Analytics** | Privacy-first event tracking (state selection, milestone views, engagement) |
+| **Firebase Performance** | Automatic page load metrics, network request monitoring |
+| **Google Fonts** | Typography (Inter for body, Outfit for headings) with preconnect |
+
+## Testing
+
+The project includes a comprehensive zero-dependency test suite with **120+ tests** across 8 categories:
+
+| Suite | Coverage |
+|---|---|
+| 🔒 Security | Input sanitization, XSS detection, rate limiting, validation |
+| 📊 Data Integrity | Schema validation, URL verification, type checking for all 51 entries |
+| 🔍 State Detection | Exact match, fuzzy match, multi-word, false positive prevention |
+| 🤖 Chatbot Flow | State machine transitions, partisan detection, milestone navigation |
+| 🔧 Utils | Date formatting, countdown badges, markdown parsing, debounce |
+| 📈 Analytics | Graceful degradation, all event types, opt-in/opt-out |
+| ♿ Accessibility | ARIA attributes, landmarks, labels, skip link, semantic HTML |
+| 🔥 Google Services | Firebase SDK, JSON-LD, PWA manifest, preconnect, OG tags |
+
+Run tests by opening `test.html` in any modern browser.
 
 ## Project Structure
 
 ```
 Promptwar/
-├── index.html              # Main app shell
+├── index.html              # App shell (SEO, CSP, PWA, JSON-LD, accessibility)
+├── manifest.json           # PWA web app manifest
+├── sw.js                   # Service worker for offline caching
 ├── css/
-│   └── style.css           # All styling, animations, responsive design
+│   └── style.css           # Design system (glassmorphism, animations, a11y)
 ├── js/
-│   ├── data.js             # 50-state election dataset
-│   ├── security.js         # Input sanitization, rate limiting, XSS prevention
-│   ├── utils.js            # Date formatting, markdown parsing, helpers
+│   ├── data.js             # 50-state + DC election dataset (frozen)
+│   ├── security.js         # Input sanitization, adaptive rate limiting
+│   ├── utils.js            # Date helpers, markdown parser, debounce
+│   ├── analytics.js        # Privacy-first Firebase Analytics wrapper
 │   ├── chatbot.js          # Conversation engine (state machine)
-│   └── app.js              # UI controller, message rendering, event handling
+│   ├── app.js              # UI controller, Firebase Performance, SW registration
+│   └── tests.js            # 120+ automated tests
+├── test.html               # Visual test runner
 └── assets/
     └── favicon.svg         # App icon
-firebase.json               # Firebase Hosting configuration
+firebase.json               # Firebase Hosting config with security headers
 ```
 
 ## Run It Locally
 
 Just open `Promptwar/index.html` in any modern browser. That's literally it. No npm install, no build step.
 
-If you want to use a local server (for stricter CSP testing):
+If you want to use a local server (for stricter CSP testing and service worker):
 
 ```bash
 npx serve Promptwar

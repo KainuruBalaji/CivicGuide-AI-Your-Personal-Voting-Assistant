@@ -2,7 +2,8 @@
  * @module CivicGuideApp
  * @description Main UI controller — initializes chat, handles events,
  * renders messages with accessibility support, and manages focus.
- * @version 2.0.0
+ * Integrates Firebase Analytics & Performance Monitoring (Google Services).
+ * @version 3.0.0
  */
 
 const App = (() => {
@@ -12,6 +13,8 @@ const App = (() => {
   let inputField;
   /** @type {HTMLButtonElement} Send button */
   let sendButton;
+  /** @type {HTMLElement} Screen-reader announcement region */
+  let srAnnouncements;
 
   /** @constant {number} Maximum messages kept in DOM for performance */
   const MAX_DOM_MESSAGES = 100;
@@ -32,10 +35,14 @@ const App = (() => {
    * Sets up DOM references, event listeners, error handlers, and analytics.
    */
   function init() {
+    // Performance mark
+    if (window.performance && performance.mark) performance.mark('app-init-start');
+
     // DOM references with validation
     messagesContainer = document.getElementById('chat-messages');
     inputField = document.getElementById('chat-input');
     sendButton = document.getElementById('send-btn');
+    srAnnouncements = document.getElementById('sr-announcements');
 
     if (!messagesContainer || !inputField || !sendButton) {
       console.error('[CivicGuide] Critical DOM elements missing — cannot initialize.');
@@ -73,11 +80,68 @@ const App = (() => {
     Analytics.init(FIREBASE_CONFIG);
     Analytics.logEvent('app_loaded');
 
+    // Initialize Firebase Performance Monitoring (Google Services)
+    initFirebasePerformance();
+
+    // Register service worker for offline caching
+    registerServiceWorker();
+
+    // Performance mark
+    if (window.performance && performance.mark) {
+      performance.mark('app-init-end');
+      performance.measure('app-init', 'app-init-start', 'app-init-end');
+    }
+
     // Show welcome message with a slight delay for effect
     setTimeout(async () => {
       const welcome = Chatbot.getWelcomeMessage();
       await showTypingThenMessage(welcome);
     }, 600);
+  }
+
+  /**
+   * Initialize Firebase Performance Monitoring.
+   * Automatically tracks page load, network requests, and custom traces.
+   * @private
+   */
+  function initFirebasePerformance() {
+    try {
+      if (typeof firebase !== 'undefined' && firebase.performance) {
+        firebase.performance();
+        console.info('[CivicGuide] Firebase Performance Monitoring initialized.');
+      }
+    } catch (err) {
+      console.warn('[CivicGuide] Performance Monitoring unavailable:', err.message);
+    }
+  }
+
+  /**
+   * Register the service worker for offline caching and PWA support.
+   * @private
+   */
+  function registerServiceWorker() {
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js')
+          .then(reg => console.info('[CivicGuide] Service worker registered:', reg.scope))
+          .catch(err => console.warn('[CivicGuide] Service worker registration failed:', err.message));
+      });
+    }
+  }
+
+  /**
+   * Announce a message to screen readers via the live region.
+   * @param {string} text - Plain text to announce
+   * @private
+   */
+  function announceToScreenReader(text) {
+    if (srAnnouncements) {
+      srAnnouncements.textContent = '';
+      // Small delay to ensure the live region triggers
+      requestAnimationFrame(() => {
+        srAnnouncements.textContent = text;
+      });
+    }
   }
 
   /**
@@ -175,6 +239,10 @@ const App = (() => {
     renderBotMessage(response);
     sendButton.disabled = false;
     inputField.focus();
+
+    // Announce new message to screen readers
+    const plainText = response.text ? response.text.replace(/\*\*/g, '').replace(/\*/g, '').replace(/\[(.+?)\]\(.+?\)/g, '$1').substring(0, 200) : '';
+    announceToScreenReader(`CivicGuide says: ${plainText}`);
   }
 
   /**
